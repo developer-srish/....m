@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SIGMA // PHONK WEBCAM // TACTICAL MONITOR</title>
+<style>
+  :root{
+    --bg:#050805;
+    --green:#39ff6a;
+    --green-dim:#1c7a35;
+    --panel:#0a120a;
+    --panel-border:#1c7a35;
+    --text-dim:#7fae86;
+    --blue:#3ba7ff;
+    --red:#ff3b5c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    height:100%; margin:0; padding:0;
+    background:var(--bg);
+    font-family:'Courier New', ui-monospace, monospace;
+    color:var(--green);
+    overflow:hidden;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  #app{position:relative; width:100%; height:100%; background:#000;}
+
+  /* ---------- START SCREEN ---------- */
+  #startScreen{
+    position:absolute; inset:0; z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, #081208 0%, #000 80%);
+    padding:24px;
+  }
+  .start-card{
+    border:1px solid var(--green); border-radius:14px;
+    padding:32px 24px; max-width:420px; width:100%;
+    text-align:center;
+    box-shadow:0 0 30px rgba(57,255,106,0.25), inset 0 0 20px rgba(57,255,106,0.05);
+    background:rgba(5,15,5,0.6);
+  }
+  .cam-icon{
+    width:90px;height:90px;border:2px solid var(--green); border-radius:50%;
+    display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
+    box-shadow:0 0 20px rgba(57,255,106,0.4);
+  }
+  .cam-icon svg{width:42px;height:42px;fill:var(--green);}
+  .start-title{
+    font-size:1.9rem; font-weight:800; letter-spacing:1px; line-height:1.15;
+    text-shadow:0 0 12px var(--green), 0 0 24px var(--green);
+    margin-bottom:10px;
+  }
+  .start-sub{color:var(--text-dim); font-size:0.78rem; letter-spacing:0.5px; margin-bottom:20px;}
+  .howto{
+    border:1px solid var(--green-dim); border-radius:10px; padding:16px;
+    text-align:left; font-size:0.8rem; color:#c7e6cc; line-height:1.5;
+    margin-bottom:20px; background:rgba(0,0,0,0.3);
+  }
+  .howto b{color:var(--green);}
+  kbd{
+    background:#0d1a0d; border:1px solid var(--green); border-radius:4px;
+    padding:1px 7px; color:var(--green); font-size:0.75rem;
+  }
+  #initBtn{
+    width:100%; padding:16px; border:none; border-radius:10px; cursor:pointer;
+    background:var(--green); color:#001a05; font-weight:800; font-size:1rem;
+    letter-spacing:1px; box-shadow:0 0 20px rgba(57,255,106,0.5);
+  }
+  #initBtn:active{transform:scale(0.98);}
+  #startErr{color:var(--red); font-size:0.75rem; margin-top:10px; min-height:14px;}
+
+  /* ---------- CAMERA VIEW ---------- */
+  #camWrap{position:absolute; inset:0; display:none; background:#000;}
+  #camWrap.active{display:block;}
+  video, canvas#overlay{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  }
+  video{transform:scaleX(-1);}
+  canvas#overlay{pointer-events:none;}
+
+  .hud-top{
+    position:absolute; top:calc(14px + env(safe-area-inset-top,0px)); left:14px; right:14px;
+    display:flex; justify-content:space-between; align-items:flex-start; z-index:10;
+  }
+  .status-pill{
+    background:rgba(0,10,0,0.55); border:1px solid var(--green); border-radius:30px;
+    padding:8px 16px; font-size:0.7rem; letter-spacing:1px; font-weight:700;
+    display:flex; align-items:center; gap:8px;
+    text-shadow:0 0 6px var(--green);
+  }
+  .dot{width:9px;height:9px;border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  .icon-btn{
+    width:36px;height:36px;border-radius:50%; border:1px solid var(--green);
+    background:rgba(0,10,0,0.55); color:var(--green); display:flex;align-items:center;justify-content:center;
+    font-size:1rem; cursor:pointer;
+  }
+
+  .subject-label{
+    position:absolute; z-index:10; left:50%; transform:translateX(-50%);
+    font-size:0.75rem; font-weight:800; letter-spacing:2px;
+    text-shadow:0 0 8px var(--green);
+    display:none;
+  }
+
+  .bottom-panel{
+    position:absolute; left:10px; right:10px;
+    bottom:calc(14px + env(safe-area-inset-bottom,0px));
+    z-index:10; background:rgba(0,10,0,0.6); border:1px solid var(--green);
+    border-radius:16px; padding:12px; backdrop-filter:blur(3px);
+  }
+  .layer-row{display:flex; gap:8px; margin-bottom:10px;}
+  .layer-btn{
+    flex:1; border-radius:24px; border:1px solid var(--green-dim); background:transparent;
+    color:var(--text-dim); font-size:0.68rem; font-weight:700; letter-spacing:0.5px;
+    padding:10px 4px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;
+    line-height:1.2;
+  }
+  .layer-btn.on{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .action-row{display:flex; gap:8px; margin-bottom:10px;}
+  #ghostBtn{
+    flex:1; border:none; border-radius:24px; background:var(--blue); color:#fff;
+    font-weight:800; font-size:0.75rem; letter-spacing:0.5px; padding:12px; cursor:pointer;
+  }
+  #bothBtn{
+    border:none; border-radius:24px; background:var(--green); color:#001a05;
+    font-weight:800; font-size:0.75rem; padding:12px 18px; cursor:pointer;
+  }
+  .action-row .icon-btn{background:rgba(0,0,0,0.4);}
+  .tool-row{display:flex; gap:8px;}
+  .tool-btn{
+    flex:1; border-radius:24px; border:1px solid var(--green-dim); background:rgba(0,0,0,0.3);
+    color:var(--green); font-size:0.65rem; font-weight:700; padding:12px 4px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:4px;
+  }
+  .tool-btn.active{border-color:var(--green); box-shadow:0 0 8px rgba(57,255,106,0.4);}
+
+  /* ---------- SOUNDBOARD MODAL ---------- */
+  #soundModal{
+    position:absolute; inset:0; z-index:40; display:none;
+    background:linear-gradient(180deg, #05130a 0%, #030a05 100%);
+    overflow-y:auto; padding:calc(20px + env(safe-area-inset-top,0px)) 16px 30px;
+  }
+  #soundModal.open{display:block;}
+  .modal-header{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;}
+  .modal-title{font-size:1.4rem; font-weight:800; line-height:1.2; text-shadow:0 0 10px var(--green);}
+  .modal-title span{display:block;}
+  .close-x{
+    width:38px;height:38px; border-radius:8px; border:none; background:transparent;
+    color:var(--green); font-size:1.4rem; cursor:pointer;
+  }
+  .vol-box{
+    border:1px solid var(--green-dim); border-radius:12px; padding:16px; margin-bottom:20px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .vol-label{font-size:0.75rem; line-height:1.3; font-weight:700; white-space:nowrap;}
+  input[type=range]{
+    flex:1; -webkit-appearance:none; height:5px; border-radius:3px;
+    background:linear-gradient(90deg, var(--green) 0%, var(--green) var(--val,90%), #1c3a1c var(--val,90%), #1c3a1c 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:20px;height:20px;border-radius:50%;
+    background:var(--green); box-shadow:0 0 10px var(--green); cursor:pointer;
+  }
+  .vol-pct{font-weight:800; min-width:42px; text-align:right;}
+  .section-label{font-size:0.75rem; letter-spacing:1px; margin-bottom:10px; color:var(--green); display:flex; align-items:center; gap:6px;}
+  .preset{
+    border:1px solid var(--green-dim); border-radius:12px; padding:16px; margin-bottom:12px;
+    cursor:pointer; transition:0.15s;
+  }
+  .preset.selected{border-color:var(--green); background:rgba(57,255,106,0.06); box-shadow:0 0 14px rgba(57,255,106,0.25);}
+  .preset-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .preset-name{font-weight:800; font-size:1rem; line-height:1.25;}
+  .preset-meta{font-size:0.72rem; color:var(--text-dim); margin-top:6px; line-height:1.4;}
+  .preview-btn{
+    border:1px solid var(--green-dim); border-radius:8px; background:rgba(0,0,0,0.4);
+    color:var(--green); font-size:0.68rem; font-weight:700; padding:9px 12px; white-space:nowrap;
+    cursor:pointer; display:flex; align-items:center; gap:5px;
+  }
+  .preview-btn.playing{border-color:var(--green); box-shadow:0 0 8px rgba(57,255,106,0.4);}
+  .radio-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--text-dim); flex-shrink:0; margin-top:2px;}
+  .radio-dot.checked{border-color:var(--green); background:var(--green); box-shadow:0 0 6px var(--green);}
+  .preset-row{display:flex; gap:10px;}
+
+  /* flash effect for capture */
+  .flash{
+    position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:30;
+  }
+  .flash.go{animation:flashAnim 0.35s ease-out;}
+  @keyframes flashAnim{0%{opacity:0.9;}100%{opacity:0;}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START SCREEN -->
+  <div id="startScreen">
+    <div class="start-card">
+      <div class="cam-icon">
+        <svg viewBox="0 0 24 24"><path d="M4 5h2.2l1.5-1.8C8 2.8 8.5 2.5 9 2.5h6c.5 0 1 .3 1.3.7L17.8 5H20a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm8 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+      </div>
+      <div class="start-title">CONFIDENCE<br>BOOSTER AI</div>
+      <div class="start-sub">VIRAL PHONK WEBCAM · 3D FACE TRACKING · PRESET ACTION RECORDING</div>
+      <div class="howto">
+        ⚡ <b>HOW TO USE:</b><br>
+        · Take a sip of water/coffee, OR adjust your glasses.<br>
+        · AI detects your gesture · locks target · triggers edit.<br>
+        · Press <kbd>SPACE</kbd> anytime to force trigger manually.
+      </div>
+      <button id="initBtn">⚡ INITIALIZE TACTICAL CAM</button>
+      <div id="startErr"></div>
+    </div>
+  </div>
+
+  <!-- CAMERA VIEW -->
+  <div id="camWrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="flash" id="flash"></div>
+
+    <div class="hud-top">
+      <div class="status-pill"><span class="dot"></span> CONFIDENCE CAM · <span id="fpsCounter">60</span> FPS</div>
+      <div class="icon-btn" id="switchCamBtn">⟳</div>
+    </div>
+
+    <div class="subject-label" id="subjectLabel" style="top:38%;">SUBJECT: [LOCKED]</div>
+
+    <div class="bottom-panel">
+      <div class="layer-row">
+        <button class="layer-btn on" data-layer="ghost">👻<span>GHOST<br>TRAILS</span></button>
+        <button class="layer-btn" data-layer="sigma">🗿<span>SIGMA<br>SNAPS</span></button>
+        <button class="layer-btn" data-layer="manga">⚡<span>DARK<br>MANGA</span></button>
+      </div>
+      <div class="action-row">
+        <button id="ghostBtn">⚡ FORCE GHOST DROP</button>
+        <button id="bothBtn">BOTH</button>
+        <div class="icon-btn" id="coffeeBtn">☕</div>
+        <div class="icon-btn" id="eyeBtn">👁</div>
+      </div>
+      <div class="tool-row">
+        <button class="tool-btn" id="captureBtn">📷</button>
+        <button class="tool-btn active" id="trackBtn">⊡</button>
+        <button class="tool-btn" id="soundBtnMute">🔊</button>
+        <button class="tool-btn" id="soundBtnOpen">🎵</button>
+        <button class="tool-btn" id="normBtn">☰ NORM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOUNDBOARD MODAL -->
+  <div id="soundModal">
+    <div class="modal-header">
+      <div class="modal-title">🎵<span>PHONK SOUNDBOARD &</span><span>SOUNDTRACKS</span></div>
+      <button class="close-x" id="closeSoundBtn">✕</button>
+    </div>
+    <div class="vol-box">
+      <span>🔊</span>
+      <div class="vol-label">AUDIO<br>VOLUME:</div>
+      <input type="range" id="volSlider" min="0" max="100" value="90" style="--val:90%">
+      <div class="vol-pct" id="volPct">90%</div>
+    </div>
+    <div class="section-label">✨ SELECT EDIT SOUNDTRACK PRESET:</div>
+    <div id="presetList"></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const presets = [
+    {id:'marlon', name:'MARLON GETS MOGGED\n(VIRAL 2026)', meta:'104 BPM // Wasted Effect + Slowed Mog Beat', freq:110},
+    {id:'ghost', name:'MONTAGEM TOMADA\n(GHOST IMPACT 2026)', meta:'130 BPM // Phonk Ghost-Trails + 808 Sub Shatter', freq:65, selected:true},
+    {id:'tokyo', name:'TOKYO DRIFT PHONK', meta:'140 BPM // Aggressive 808 Cowbell Drift', freq:90},
+    {id:'cyber', name:'CYBER SIGMA 2077', meta:'130 BPM // Dark Cyberpunk Trap & Glitch', freq:75},
+    {id:'giga', name:'GIGACHAD ASCENDED', meta:'145 BPM // Triumphant Sigma Cowbell Anthem', freq:120},
+    {id:'manga', name:'MOGGER (DARK MANGA 2026)', meta:'130 BPM // Dark Manga Invert & Strobe Glitch', freq:55},
+  ];
+  let selectedPreset = 'ghost';
+  let previewingId = null;
+
+  const el = (id)=>document.getElementById(id);
+  const startScreen = el('startScreen');
+  const camWrap = el('camWrap');
+  const video = el('video');
+  const overlay = el('overlay');
+  const ctx = overlay.getContext('2d');
+  const flashEl = el('flash');
+  const subjectLabel = el('subjectLabel');
+  const startErr = el('startErr');
+
+  let stream = null;
+  let audioCtx = null;
+  let masterGain = null;
+  let currentOscillators = [];
+  let facingMode = 'user';
+
+  // ---------------- AUDIO ----------------
+  function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.9;
+      masterGain.connect(audioCtx.destination);
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function stopOscillators(){
+    currentOscillators.forEach(o=>{ try{o.stop();}catch(e){} });
+    currentOscillators = [];
+  }
+
+  function playPhonkStab(baseFreq){
+    ensureAudio();
+    stopOscillators();
+    const now = audioCtx.currentTime;
+    // 808-ish sub + cowbell-ish stab, synthesized
+    const sub = audioCtx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(baseFreq*2, now);
+    sub.frequency.exponentialRampToValueAtTime(Math.max(baseFreq*0.5,20), now+0.5);
+    const subGain = audioCtx.createGain();
+    subGain.gain.setValueAtTime(0.8, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now+0.9);
+    sub.connect(subGain).connect(masterGain);
+    sub.start(now); sub.stop(now+0.9);
+
+    const bell = audioCtx.createOscillator();
+    bell.type = 'square';
+    bell.frequency.setValueAtTime(baseFreq*6, now);
+    const bellGain = audioCtx.createGain();
+    bellGain.gain.setValueAtTime(0.25, now);
+    bellGain.gain.exponentialRampToValueAtTime(0.001, now+0.25);
+    bell.connect(bellGain).connect(masterGain);
+    bell.start(now); bell.stop(now+0.25);
+
+    const noise = audioCtx.createBufferSource();
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*0.15, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * (1 - i/data.length);
+    noise.buffer = buf;
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0.3;
+    noise.connect(noiseGain).connect(masterGain);
+    noise.start(now);
+
+    currentOscillators = [sub, bell, noise];
+  }
+
+  el('volSlider').addEventListener('input', (e)=>{
+    const v = e.target.value;
+    e.target.style.setProperty('--val', v+'%');
+    el('volPct').textContent = v+'%';
+    ensureAudio();
+    masterGain.gain.value = v/100;
+  });
+
+  // ---------------- PRESET LIST ----------------
+  function renderPresets(){
+    const list = el('presetList');
+    list.innerHTML = '';
+    presets.forEach(p=>{
+      const div = document.createElement('div');
+      div.className = 'preset' + (p.id===selectedPreset ? ' selected' : '');
+      div.innerHTML = `
+        <div class="preset-row">
+          <div class="radio-dot ${p.id===selectedPreset?'checked':''}"></div>
+          <div style="flex:1">
+            <div class="preset-top">
+              <div class="preset-name">${p.name.replace('\n','<br>')}</div>
+              <button class="preview-btn ${previewingId===p.id?'playing':''}" data-id="${p.id}">▷ PREVIEW</button>
+            </div>
+            <div class="preset-meta">${p.meta}</div>
+          </div>
+        </div>`;
+      div.addEventListener('click', (e)=>{
+        if(e.target.closest('.preview-btn')) return;
+        selectedPreset = p.id;
+        renderPresets();
+      });
+      div.querySelector('.preview-btn').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        previewingId = p.id;
+        playPhonkStab(p.freq);
+        renderPresets();
+        setTimeout(()=>{ if(previewingId===p.id){previewingId=null; renderPresets();} }, 900);
+      });
+      list.appendChild(div);
+    });
+  }
+  renderPresets();
+
+  // ---------------- SOUND MODAL ----------------
+  el('soundBtnOpen').addEventListener('click', ()=> el('soundModal').classList.add('open'));
+  el('closeSoundBtn').addEventListener('click', ()=> el('soundModal').classList.remove('open'));
+  let muted = false;
+  el('soundBtnMute').addEventListener('click', ()=>{
+    muted = !muted;
+    ensureAudio();
+    masterGain.gain.value = muted ? 0 : (el('volSlider').value/100);
+    el('soundBtnMute').textContent = muted ? '🔇' : '🔊';
+    el('soundBtnMute').classList.toggle('active', muted);
+  });
+
+  // ---------------- LAYER TOGGLES ----------------
+  const activeLayers = new Set(['ghost']);
+  document.querySelectorAll('.layer-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const layer = btn.dataset.layer;
+      if(activeLayers.has(layer)){ activeLayers.delete(layer); btn.classList.remove('on'); }
+      else { activeLayers.add(layer); btn.classList.add('on'); }
+    });
+  });
+
+  // ---------------- EFFECT TRIGGER ----------------
+  function triggerEffect(){
+    const preset = presets.find(p=>p.id===selectedPreset) || presets[0];
+    playPhonkStab(preset.freq);
+    flashEl.classList.remove('go'); void flashEl.offsetWidth; flashEl.classList.add('go');
+    subjectLabel.style.display = 'block';
+    subjectLabel.textContent = 'SUBJECT: [LOCKED]';
+  }
+  el('ghostBtn').addEventListener('click', triggerEffect);
+  el('bothBtn').addEventListener('click', triggerEffect);
+  document.addEventListener('keydown', (e)=>{
+    if(e.code === 'Space' && camWrap.classList.contains('active')){
+      e.preventDefault();
+      triggerEffect();
+    }
+  });
+
+  el('captureBtn').addEventListener('click', ()=>{
+    flashEl.classList.remove('go'); void flashEl.offsetWidth; flashEl.classList.add('go');
+  });
+
+  el('trackBtn').addEventListener('click', ()=> el('trackBtn').classList.toggle('active'));
+  el('normBtn').addEventListener('click', ()=>{
+    const b = el('normBtn');
+    b.textContent = b.textContent.includes('NORM') ? '☰ BOOST' : '☰ NORM';
+  });
+
+  // ---------------- CAMERA + FACE TRACKING ----------------
+  let faceModel = null;
+  let usingSimpleTrack = true; // fallback wireframe box tracker (no external model dependency issues)
+
+  async function startCamera(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode, width:{ideal:1280}, height:{ideal:960} },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      startScreen.style.display = 'none';
+      camWrap.classList.add('active');
+      resizeCanvas();
+      requestAnimationFrame(trackLoop);
+    }catch(err){
+      startErr.textContent = 'Camera access denied or unavailable: ' + err.message;
+    }
+  }
+
+  function resizeCanvas(){
+    overlay.width = overlay.clientWidth;
+    overlay.height = overlay.clientHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  el('switchCamBtn').addEventListener('click', async ()=>{
+    facingMode = facingMode === 'user' ? 'environment' : 'user';
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    await startCamera();
+  });
+
+  el('initBtn').addEventListener('click', ()=>{
+    ensureAudio();
+    startCamera();
+  });
+
+  // Simple motion/brightness-based "face lock" box: draws an animated 3D wireframe cube
+  // centered with a subtle organic drift, simulating a tactical face-tracker HUD.
+  let t = 0;
+  let lastFrameTime = performance.now();
+  let frameCount = 0;
+  let fpsDisplay = 60;
+
+  function drawWireCube(cx, cy, size, depth, color){
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    const hw = size/2, hh = size/2;
+    const front = [
+      [cx-hw, cy-hh],[cx+hw, cy-hh],[cx+hw, cy+hh],[cx-hw, cy+hh]
+    ];
+    const back = [
+      [cx-hw+depth, cy-hh-depth],[cx+hw+depth, cy-hh-depth],
+      [cx+hw+depth, cy+hh-depth],[cx-hw+depth, cy+hh-depth]
+    ];
+    function poly(pts){
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.closePath(); ctx.stroke();
+    }
+    poly(front); poly(back);
+    for(let i=0;i<4;i++){
+      ctx.beginPath();
+      ctx.moveTo(front[i][0], front[i][1]);
+      ctx.lineTo(back[i][0], back[i][1]);
+      ctx.stroke();
+    }
+    // center crosshair
+    ctx.beginPath();
+    ctx.moveTo(cx-10, cy); ctx.lineTo(cx+10, cy);
+    ctx.moveTo(cx, cy-10); ctx.lineTo(cx, cy+10);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  function trackLoop(now){
+    if(!camWrap.classList.contains('active')) return;
+    frameCount++;
+    if(now - lastFrameTime > 500){
+      fpsDisplay = Math.round((frameCount*1000)/(now-lastFrameTime));
+      el('fpsCounter').textContent = Math.min(fpsDisplay,60);
+      frameCount = 0; lastFrameTime = now;
+    }
+    t += 0.02;
+    ctx.clearRect(0,0,overlay.width,overlay.height);
+
+    if(el('trackBtn').classList.contains('active')){
+      const cx = overlay.width/2 + Math.sin(t*0.7)*6;
+      const cy = overlay.height*0.38 + Math.cos(t*0.5)*5;
+      const size = Math.min(overlay.width, overlay.height) * 0.32;
+      drawWireCube(cx, cy, size, size*0.28, '#39ff6a');
+      subjectLabel.style.display = 'block';
+      subjectLabel.style.top = (cy + size*0.42) + 'px';
+      subjectLabel.textContent = 'SUBJECT: [LOCKED]';
+    } else {
+      subjectLabel.style.display = 'none';
+    }
+
+    requestAnimationFrame(trackLoop);
+  }
+
+})();
+</script>
+</body>
+</html>
